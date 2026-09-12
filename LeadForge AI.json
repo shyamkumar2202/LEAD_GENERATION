@@ -1,0 +1,508 @@
+{
+  "name": "LeadForge AI",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Lead FInder",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Business Niche",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "City",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Number of leads",
+              "fieldType": "number",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -336,
+        -144
+      ],
+      "id": "2d82ffd9-cf2d-43ed-9b0e-a45dfca5d3c3",
+      "name": "On form submission",
+      "webhookId": "045711be-6981-457c-bbc5-2ba3a6c0fe0f"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e7532160-dfac-4bf9-91ba-1b796665fa82",
+              "name": "=Name: niche",
+              "value": "=Value: {{$json[\"Business Niche\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "ec92ec15-9d0c-4a73-b1dd-afe98768e02e",
+              "name": "Name: city",
+              "value": "=Value: {{$json[\"City\"]}}",
+              "type": "string"
+            },
+            {
+              "id": "5c3aaa25-f3a0-47c4-9f9a-be525ee83df0",
+              "name": "Name: limit",
+              "value": "=Value: {{$json[\"Number of leads\"]}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -96,
+        -48
+      ],
+      "id": "56552a96-2c7b-4491-9b3b-f743d3015639",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.displayName,places.formattedAddress,places.googleMapsUri"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"textQuery\": \"={{$json['Business Niche']}} in {{$json.City}}\",\n  \"pageSize\": 5\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        208,
+        -144
+      ],
+      "id": "fa2bc7d8-b6d1-46ac-b8ca-dc80474d5d8b",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "gqUWFGH9XvEuRbFW",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "places",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -144
+      ],
+      "id": "e924c90f-751e-4bb1-86b5-44f6784564b4",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "71f8ce95-2768-4999-bef2-206fdc3300e8",
+              "name": "company_name",
+              "value": "={{ $json.displayName.text }}",
+              "type": "string"
+            },
+            {
+              "id": "7897124e-fa2f-47a5-ac81-30515f3ba3ec",
+              "name": "address",
+              "value": "={{ $json.formattedAddress }}",
+              "type": "string"
+            },
+            {
+              "id": "5ac8dd5c-92eb-42bb-b303-923db7628df2",
+              "name": "google_maps_url",
+              "value": "={{ $json.googleMapsUri }}",
+              "type": "string"
+            },
+            {
+              "id": "0dcdbda8-3078-4b54-b3b8-fcbb87a3e78c",
+              "name": "source",
+              "value": "google_maps",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        656,
+        -144
+      ],
+      "id": "2ed47145-2e2f-499e-83a4-6b983392ad97",
+      "name": "Normalize Google Lead"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/actors/harvestapi~linkedin-profile-search/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"profileScraperMode\": \"Full + email search\",\n  \"searchQuery\": \"Founder OR CEO OR Co-Founder OR Owner OR Managing Director OR Director\",\n  \"locations\": [\"{{ $json.City }}\"],\n  \"maxItems\": {{ Number($json[\"Number of leads\"]) }},\n  \"startPage\": 1,\n  \"takePages\": 1,\n  \"autoQuerySegmentation\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        208,
+        112
+      ],
+      "id": "86e2975c-51e2-4f4b-9eac-a9f4646be549",
+      "name": "Linkedin via Apify",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "av8F1FM7bKWgd66G",
+          "name": "Apify - LeadForge"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6e494725-cda4-4b25-b779-e65e871f0240",
+              "name": "name",
+              "value": "={{ $json.firstName + \" \" + $json.lastName }}",
+              "type": "string"
+            },
+            {
+              "id": "07cbe228-97fa-4dc5-9d6e-e7ea03f6521b",
+              "name": "linkedin_url",
+              "value": "={{ $json.linkedinUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "8274987b-b7ff-4c68-b49c-1ff1d9a97810",
+              "name": "designation",
+              "value": "={{ $json.headline }}",
+              "type": "string"
+            },
+            {
+              "id": "7cb0df33-5cae-4bf4-bfc7-747e389a421c",
+              "name": "location",
+              "value": "={{ $json.location.parsed.text }}",
+              "type": "string"
+            },
+            {
+              "id": "dafc5af9-acd5-4ae0-b85c-bed94ff42462",
+              "name": "email",
+              "value": "={{ $json.emails?.[0]?.email || null }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        432,
+        112
+      ],
+      "id": "4117c32a-74c0-45c9-bfd5-a18f144993d8",
+      "name": "Normalize LinkedIn Lead"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are LeadForge AI's Business Lead Qualification Engine.\n\nYour job is to evaluate a BUSINESS discovered through Google Places and determine whether it is a potentially valuable B2B lead for the user's requested target.\n\nUSER'S SEARCH REQUEST:\n\nNiche: {{ $('Edit Fields').item.json['Business Niche'] }}\nLocation: {{ $('Edit Fields').item.json['City'] }}\n\nBUSINESS:\n\nCompany Name: {{ $json.company_name }}\nAddress: {{ $json.address }}\nGoogle Maps URL: {{ $json.google_maps_url }}\nSource: {{ $json.source }}\n\nYOUR TASK:\n\nDetermine whether this business is relevant to the user's requested niche and location.\n\nEvaluate:\n\n1. Whether the business appears relevant to the requested niche.\n2. Whether the business is located in or reasonably associated with the requested location.\n3. Whether this is a genuine business rather than an obviously irrelevant place.\n4. Whether the business could reasonably be considered a potential B2B prospect.\n5. Do NOT invent company information, website URLs, phone numbers, emails, people, or other facts.\n\nIMPORTANT:\n\n- This is a BUSINESS lead, not a LinkedIn person.\n- Use only the information provided.\n- If information is missing, do not guess.\n- A business does not need to have the exact niche words in its name to be relevant.\n- Consider the business name and address when determining relevance.\n- Be conservative when the match is unclear.\n\nSCORING:\n\n80-100 = High\n50-79 = Medium\n0-49 = Low\n\nRETURN ONLY VALID JSON.\n\nUse exactly this structure:\n\n{\n  \"suitable_for_client\": true,\n  \"lead_score\": 85,\n  \"qualification\": \"high\",\n  \"matched_niche\": true,\n  \"decision_maker\": null,\n  \"qualification_reason\": \"Short explanation of why this business is or is not a suitable lead.\"\n}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        112
+      ],
+      "id": "928cbe21-f5e0-4969-b92f-4cad1bf5d202",
+      "name": "AI Lead Qualification",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aglVnKBHqSRVo22g",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiItems = $input.all();\nconst leadItems = $('Normalize LinkedIn Lead').all();\n\nreturn aiItems.map((item, index) => {\n  const raw = item.json.content?.parts?.[0]?.text || \"\";\n\n  let result = {};\n\n  try {\n    result = JSON.parse(raw);\n  } catch (error) {\n    try {\n      const cleaned = raw\n        .replace(/^```json\\s*/i, \"\")\n        .replace(/\\s*```$/i, \"\")\n        .trim();\n\n      result = JSON.parse(cleaned);\n    } catch (e) {\n      result = {\n        suitable_for_client: false,\n        lead_score: 0,\n        qualification: \"low\",\n        matched_niche: false,\n        decision_maker: false,\n        reason: \"AI response could not be parsed\"\n      };\n    }\n  }\n\n  const lead = leadItems[index]?.json || {};\n\n  return {\n    json: {\n      name: lead.name || null,\n      linkedin_url: lead.linkedin_url || null,\n      designation: lead.designation || null,\n      location: lead.location || null,\n      email: lead.email || null,\n      phone: lead.phone || null,\n      requested_niche: lead.requested_niche || null,\n      requested_location: lead.requested_location || null,\n\n      suitable_for_client: result.suitable_for_client ?? false,\n      lead_score: result.lead_score ?? 0,\n      qualification: result.qualification ?? \"low\",\n      matched_niche: result.matched_niche ?? false,\n      decision_maker: result.decision_maker ?? false,\n      qualification_reason: result.reason ?? \"\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        112
+      ],
+      "id": "cf5f6044-0562-4523-81d1-9aaffcf6d70c",
+      "name": "Parse AI Qualification"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "843cd26a-26a5-4662-ab9a-679bd889acd0",
+              "leftValue": "={{ $json.suitable_for_client }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        112
+      ],
+      "id": "c3a7c650-33ff-476e-b6b0-921e0609bcd1",
+      "name": "Qualified Lead?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "31ed10f3-158d-4ec3-9988-c3aa0c56c288",
+              "name": "Name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "e170347c-921c-4390-9366-80ddff5c369f",
+              "name": "Linkedin_url",
+              "value": "={{ $json.linkedin_url }}",
+              "type": "string"
+            },
+            {
+              "id": "a9efae22-2067-4d6f-8d3d-cf69b6d7ca7f",
+              "name": "Designation",
+              "value": "={{ $json.designation }}",
+              "type": "string"
+            },
+            {
+              "id": "c4c55a0c-25d7-4190-9ee0-ebcae98f682f",
+              "name": "Location",
+              "value": "={{ $json.location }}",
+              "type": "string"
+            },
+            {
+              "id": "9a0e8235-46b1-479e-9d81-0773b0128663",
+              "name": "Email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "6ed94be0-e072-4f1c-acdd-68f8b260df1f",
+              "name": "Lead_score",
+              "value": "={{ $json.lead_score }}",
+              "type": "number"
+            },
+            {
+              "id": "7cae353f-d2e7-48f7-a90d-c6873842bffe",
+              "name": "Qualification_reason",
+              "value": "={{ $json.qualification_reason }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1472,
+        16
+      ],
+      "id": "51029071-14fd-4960-90cf-432dee458b5b",
+      "name": "Final Qualified Leads"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Normalize Google Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linkedin via Apify": {
+      "main": [
+        [
+          {
+            "node": "Normalize LinkedIn Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize LinkedIn Lead": {
+      "main": [
+        []
+      ]
+    },
+    "AI Lead Qualification": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Qualification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Qualification": {
+      "main": [
+        [
+          {
+            "node": "Qualified Lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualified Lead?": {
+      "main": [
+        [
+          {
+            "node": "Final Qualified Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Qualified Leads": {
+      "main": [
+        []
+      ]
+    },
+    "Normalize Google Lead": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d2706a5d-1c58-4fbe-b972-92ececf0e4eb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "870cbb84b3c6206edc30a7dee2d908bdef32588f173fb0d24996d795eff7c688"
+  },
+  "nodeGroups": [],
+  "id": "G3jCuhtn2UMoEwdb",
+  "tags": []
+}
